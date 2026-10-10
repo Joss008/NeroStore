@@ -1,0 +1,23 @@
+
+> page-blox@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 5.4s (552 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 5509ms
+ GET /_next/static/webpack/129ce2af193b5187.webpack.hot-update.json 404 in 5552ms
+ GET / 200 in 65ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 31ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 60ms
+ GET / 200 in 57ms
+ GET / 200 in 49ms
+ GET / 200 in 65ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 30ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 42ms
+^C^C
