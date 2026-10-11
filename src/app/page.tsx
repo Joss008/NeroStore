@@ -165,59 +165,58 @@ export default function Home() {
               Ver todas →
             </Link>
           </div>
-          <FeaturedProducts products={allProducts.filter((p) => p.originalPrices && Object.values(p.originalPrices).some((v) => v && v > 0)).slice(0, 8)} />
+          <FeaturedProducts
+            type="offers"
+            products={allProducts.filter((p) => p.originalPrices && Object.values(p.originalPrices).some((v) => v && v > 0)).slice(0, 8)}
+          />
         </div>
       </section>
 
       {/* MÁS VENDIDOS */}
-      {featured.length > 0 && (
-        <section className="py-10 sm:py-14 px-4 sm:px-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-6">
-              <div>
-                <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase block mb-2 text-accent">
-                  Más vendidos
-                </span>
-                <h2
-                  className="text-2xl sm:text-3xl font-normal text-white"
-                  style={{ fontFamily: "var(--font-cormorant)" }}
-                >
-                  Los favoritos de la comunidad
-                </h2>
-              </div>
-              <Link
-                href="/productos"
-                className="text-accent text-sm hover:text-accent-light transition-colors hidden sm:block"
+      <section className="py-10 sm:py-14 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase block mb-2 text-accent">
+                Más vendidos
+              </span>
+              <h2
+                className="text-2xl sm:text-3xl font-normal text-white"
+                style={{ fontFamily: "var(--font-cormorant)" }}
               >
-                Ver todos →
-              </Link>
+                Los favoritos de la comunidad
+              </h2>
             </div>
-            <FeaturedProducts products={featured} />
+            <Link
+              href="/productos"
+              className="text-accent text-sm hover:text-accent-light transition-colors hidden sm:block"
+            >
+              Ver todos →
+            </Link>
           </div>
-        </section>
-      )}
+          <FeaturedProducts type="popular" products={featured} />
+        </div>
+      </section>
 
       {/* NUEVOS INGRESOS */}
-      {newArrivals.length > 0 && (
-        <section className="py-10 sm:py-14 px-4 sm:px-6 bg-scene-900/30 border-t border-white/5">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-6">
-              <div>
-                <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase block mb-2 text-green-400">
-                  ✨ Recientes
-                </span>
-                <h2
-                  className="text-2xl sm:text-3xl font-normal text-white"
-                  style={{ fontFamily: "var(--font-cormorant)" }}
-                >
-                  Novedades del catálogo
-                </h2>
-              </div>
+      <section className="py-10 sm:py-14 px-4 sm:px-6 bg-scene-900/30 border-t border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase block mb-2 text-green-400">
+                ✨ Recientes
+              </span>
+              <h2
+                className="text-2xl sm:text-3xl font-normal text-white"
+                style={{ fontFamily: "var(--font-cormorant)" }}
+              >
+                Novedades del catálogo
+              </h2>
             </div>
-            <FeaturedProducts products={newArrivals} />
           </div>
-        </section>
-      )}
+          <FeaturedProducts type="newArrivals" products={newArrivals} />
+        </div>
+      </section>
 
       {/* POR QUÉ COMPRAR AQUÍ */}
       <section className="py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-br from-accent/10 via-transparent to-transparent border-t border-white/5">
