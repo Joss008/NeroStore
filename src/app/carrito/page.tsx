@@ -42,9 +42,9 @@ export default function CarritoPage() {
     if (items.length === 0 || !user) return;
     setSubmitting(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const order = createOrder(
+        const order = await createOrder(
           {
             name: user.name,
             phone: user.phone,

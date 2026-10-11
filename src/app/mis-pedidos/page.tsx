@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { getOrders, statusLabels, statusColors, formatOrderDate, type Order } from "@/lib/orders";
+import { fetchOrders, statusLabels, statusColors, formatOrderDate, type Order } from "@/lib/orders";
 import { formatCurrency } from "@/lib/format";
 import type { Currency } from "@/lib/products";
 
@@ -13,12 +13,28 @@ export default function MisPedidosPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setOrders(getOrders(user.phone));
-    } else {
-      setOrders([]);
+    let cancelled = false;
+
+    async function load() {
+      if (!user) {
+        if (!cancelled) {
+          setOrders([]);
+          setLoaded(true);
+        }
+        return;
+      }
+      const remote = await fetchOrders(user.phone);
+      if (!cancelled) {
+        setOrders(remote);
+        setLoaded(true);
+      }
     }
-    setLoaded(true);
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   if (!isAuthenticated) {

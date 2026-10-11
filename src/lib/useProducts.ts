@@ -176,13 +176,10 @@ export function useMergedProducts(staticProducts: Product[]) {
             const res = await fetch(ep, { cache: "no-store" });
             if (res.ok) {
               const data = await res.json();
-              if (Array.isArray(data.custom) && Array.isArray(data.hidden)) {
-                const localCustom = getCustomProducts();
-                if (data.updatedAt && (data.custom.length > 0 || data.hidden.length > 0 || localCustom.length === 0)) {
-                  writeJSON(CUSTOM_KEY, data.custom);
-                  writeJSON(HIDDEN_KEY, data.hidden);
-                  setProducts(getMergedProducts(staticProducts));
-                }
+              if (data.updatedAt && Array.isArray(data.custom) && Array.isArray(data.hidden)) {
+                writeJSON(CUSTOM_KEY, data.custom);
+                writeJSON(HIDDEN_KEY, data.hidden);
+                setProducts(getMergedProducts(staticProducts));
               }
               break;
             }
@@ -211,9 +208,12 @@ export function useMergedProducts(staticProducts: Product[]) {
     };
     window.addEventListener("focus", onFocus);
 
+    const poll = setInterval(reconcileWithApi, 20000);
+
     return () => {
       unsubscribe();
       window.removeEventListener("focus", onFocus);
+      clearInterval(poll);
     };
   }, [staticProducts]);
 

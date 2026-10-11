@@ -16,6 +16,13 @@ export interface Order {
 
 const STORAGE_KEY = "blox-orders";
 
+const API_ENDPOINTS = [
+  "/api/orders",
+  "/admin/api/orders",
+  "http://localhost:3000/api/orders",
+  "http://localhost:3001/admin/api/orders",
+];
+
 function readOrders(): Order[] {
   if (typeof window === "undefined") return [];
   try {
@@ -54,12 +61,28 @@ export function getOrders(phone?: string): Order[] {
   return all;
 }
 
-export function createOrder(
+export async function fetchOrders(phone?: string): Promise<Order[]> {
+  for (const ep of API_ENDPOINTS) {
+    try {
+      const url = phone ? `${ep}?phone=${encodeURIComponent(phone)}` : ep;
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data as Order[];
+      }
+    } catch {
+      // probar siguiente
+    }
+  }
+  return getOrders(phone);
+}
+
+export async function createOrder(
   user: { name: string; phone: string; countryCode: string; countryFlag: string },
   items: CartItem[],
   paymentMethod: string,
   notes: string
-): Order {
+): Promise<Order> {
   const code = generateOrderCode();
 
   const totalsByCurrency: Record<string, number> = {};
@@ -85,14 +108,40 @@ export function createOrder(
   writeOrders(next);
   notifyOrdersChanged(next);
 
+  for (const ep of API_ENDPOINTS) {
+    try {
+      const res = await fetch(ep, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order),
+      });
+      if (res.ok) break;
+    } catch {
+      // probar siguiente
+    }
+  }
+
   return order;
 }
 
-export function updateOrderStatus(code: string, status: Order["status"]): void {
+export async function updateOrderStatus(code: string, status: Order["status"]): Promise<void> {
   const all = readOrders();
   const updated = all.map((o) => (o.code === code ? { ...o, status } : o));
   writeOrders(updated);
   notifyOrdersChanged(updated);
+
+  for (const ep of API_ENDPOINTS) {
+    try {
+      const res = await fetch(ep, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, status }),
+      });
+      if (res.ok) break;
+    } catch {
+      // probar siguiente
+    }
+  }
 }
 
 export function getOrderByCode(code: string): Order | undefined {
