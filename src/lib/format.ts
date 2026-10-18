@@ -18,6 +18,18 @@ export const CURRENCY_FLAGS: Record<Currency, string> = {
   COP: "🇨🇴",
 };
 
+export const CURRENCY_COUNTRIES: Record<Currency, string> = {
+  PEN: "Perú",
+  MXN: "México",
+  COP: "Colombia",
+};
+
+export const CURRENCY_FLAG_IMAGES: Record<Currency, string> = {
+  PEN: "/flags/pe.png",
+  MXN: "/flags/mx.png",
+  COP: "/flags/co.png",
+};
+
 export const CURRENCY_CODES: Record<Currency, string> = {
   PEN: "PEN",
   MXN: "MXN",

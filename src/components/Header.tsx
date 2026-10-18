@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { useCurrencyContext } from "@/lib/currency";
-import { CURRENCY_FLAGS, CURRENCY_LABELS } from "@/lib/format";
-import type { Currency } from "@/lib/products";
+import { CURRENCY_COUNTRIES, CURRENCY_FLAG_IMAGES } from "@/lib/format";
+import CurrencyModal from "./CurrencyModal";
 import LoginModal from "./LoginModal";
 
 const NAV_LINKS = [
@@ -15,8 +15,6 @@ const NAV_LINKS = [
   { href: "/productos", label: "Catálogo" },
   { href: "/mis-pedidos", label: "Mis Pedidos" },
 ];
-
-const CURRENCIES: Currency[] = ["PEN", "MXN", "COP"];
 
 export default function Header() {
   const { totalItems } = useCart();
@@ -38,11 +36,11 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    document.body.style.overflow = mobileOpen || currencyOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [mobileOpen]);
+  }, [mobileOpen, currencyOpen]);
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -94,47 +92,16 @@ export default function Header() {
           {/* Currency selector */}
           <div className="relative hidden sm:block">
             <button
-              onClick={() => setCurrencyOpen(!currencyOpen)}
+              onClick={() => setCurrencyOpen(true)}
               className="flex items-center gap-1.5 bg-scene-900/70 border border-white/10 hover:border-accent/40 rounded-full pl-2 pr-2.5 py-1.5 text-xs text-white/80 transition-colors"
-              aria-label="Cambiar moneda"
+              aria-label="Cambiar país o moneda"
             >
-              <span className="text-base leading-none">{CURRENCY_FLAGS[currency]}</span>
+              <img src={CURRENCY_FLAG_IMAGES[currency]} alt="" className="w-5 h-3.5 rounded-[2px] object-cover ring-1 ring-white/20" />
               <span className="font-semibold">{currency}</span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
-            {currencyOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setCurrencyOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-56 bg-scene-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
-                  <div className="p-2 border-b border-white/5">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wider px-2 py-1">Moneda</p>
-                  </div>
-                  {CURRENCIES.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => {
-                        setCurrency(c);
-                        setCurrencyOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 transition-colors ${
-                        currency === c
-                          ? "bg-accent/15 text-accent"
-                          : "text-white/70 hover:bg-white/5"
-                      }`}
-                    >
-                      <span className="text-base">{CURRENCY_FLAGS[c]}</span>
-                      <div className="flex-1">
-                        <p className="font-medium">{c}</p>
-                        <p className="text-[10px] text-white/40">{CURRENCY_LABELS[c]}</p>
-                      </div>
-                      {currency === c && <span className="text-accent text-xs">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
 
           {/* Cart */}
@@ -304,22 +271,19 @@ export default function Header() {
             {/* Currency selector in drawer */}
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Moneda</p>
-              <div className="flex gap-2">
-                {CURRENCIES.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCurrency(c)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                      currency === c
-                        ? "bg-accent text-white glow-red"
-                        : "bg-scene-900 text-white/60 border border-white/10"
-                    }`}
-                  >
-                    <span>{CURRENCY_FLAGS[c]}</span>
-                    {c}
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  setCurrencyOpen(true);
+                }}
+                className="w-full flex items-center justify-between gap-2 bg-scene-900 border border-white/10 rounded-full pl-2 pr-3 py-2 text-sm text-white/80"
+              >
+                <span className="flex items-center gap-2">
+                  <img src={CURRENCY_FLAG_IMAGES[currency]} alt="" className="w-5 h-3.5 rounded-[2px] object-cover ring-1 ring-white/20" />
+                  <span className="font-medium">{CURRENCY_COUNTRIES[currency]}</span>
+                </span>
+                <span className="text-[11px] text-white/40">{currency} · Cambiar</span>
+              </button>
             </div>
 
             <Link
@@ -354,6 +318,13 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      <CurrencyModal
+        open={currencyOpen}
+        currency={currency}
+        onClose={() => setCurrencyOpen(false)}
+        onSelect={setCurrency}
+      />
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
