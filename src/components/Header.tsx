@@ -62,8 +62,8 @@ export default function Header() {
           <img
             src="/logo.png"
             alt="Page Blox"
-            className={`h-10 sm:h-11 md:h-12 w-auto object-contain transition-opacity ${
-              scrolled ? "opacity-100" : "opacity-90 group-hover:opacity-100"
+            className={`w-auto object-contain transition-all duration-300 ${
+              scrolled ? "h-10 sm:h-12 md:h-14 opacity-100" : "h-14 sm:h-16 md:h-20 opacity-90 group-hover:opacity-100"
             }`}
           />
         </Link>
