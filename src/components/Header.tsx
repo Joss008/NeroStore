@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useCurrencyContext } from "@/lib/currency";
 import { CURRENCY_COUNTRIES, CURRENCY_FLAG_IMAGES } from "@/lib/format";
 import CurrencyModal from "./CurrencyModal";
+import MetallicPaint from "./MetallicPaint";
 import LoginModal from "./LoginModal";
 
 const NAV_LINKS = [
@@ -58,14 +59,24 @@ export default function Header() {
         }`}
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center group flex-shrink-0">
-          <img
-            src="/logo.png"
-            alt="Page Blox"
-            className={`w-auto object-contain transition-all duration-300 ${
-              scrolled ? "h-10 sm:h-12 md:h-14 opacity-100" : "h-14 sm:h-16 md:h-20 opacity-90 group-hover:opacity-100"
+        <Link href="/" aria-label="NERONXSTORE - Inicio" className="flex items-center flex-shrink-0">
+          <div
+            className={`transition-all duration-300 ${
+              scrolled ? "h-10 w-20 sm:h-12 sm:w-24 md:h-14 md:w-28" : "h-14 w-28 sm:h-16 sm:w-32 md:h-20 md:w-40"
             }`}
-          />
+          >
+            <MetallicPaint
+              imageSrc="/logo.png"
+              speed={0}
+              scale={0.95}
+              density={2}
+              softness={0.12}
+              edgeBend={0.6}
+              mouseTilt={0.45}
+              intro
+              fallback={<img src="/logo.png" alt="" className="h-full w-full object-contain" />}
+            />
+          </div>
         </Link>
 
         {/* Desktop nav centrado */}
