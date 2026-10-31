@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getFeatured, categories, products as allProducts } from "@/lib/products";
-import MetallicText from "@/components/MetallicText";
 import FeaturedProducts from "./FeaturedProducts";
 
 export default function Home() {
@@ -28,15 +27,7 @@ export default function Home() {
               >
                 <span className="text-white block">Frutas, gamepasses</span>
                 <span className="block mt-1 text-accent glow-text">
-                  y servicios{" "}
-                  <MetallicText
-                    text="al instante"
-                    className="text-accent drop-shadow-[0_0_14px_rgba(239,68,68,0.5)]"
-                    fontFamily="var(--font-cormorant)"
-                    fontWeight={700}
-                    color="#f87171"
-                    speed={0.9}
-                  />
+                  y servicios al instante
                 </span>
               </h1>
               <p className="text-white/60 text-sm sm:text-base max-w-xl leading-relaxed pt-2">
