@@ -11,19 +11,6 @@ export interface PaymentMethod {
   enabled?: boolean;
 }
 
-export const SEED_PAYMENT_METHODS: PaymentMethod[] = [
-  { id: "seed-yape", name: "Yape (Perú)", currency: "PEN", enabled: true },
-  { id: "seed-plin", name: "Plin (Perú)", currency: "PEN", enabled: true },
-  { id: "seed-transferencia-pe", name: "Transferencia Bancaria (PE)", currency: "PEN", enabled: true },
-  { id: "seed-oxxo", name: "OXXO (México)", currency: "MXN", enabled: true },
-  { id: "seed-spei", name: "SPEI (México)", currency: "MXN", enabled: true },
-  { id: "seed-transferencia-mx", name: "Transferencia Bancaria (MX)", currency: "MXN", enabled: true },
-  { id: "seed-nequi", name: "Nequi (Colombia)", currency: "COP", enabled: true },
-  { id: "seed-daviplata", name: "Daviplata (Colombia)", currency: "COP", enabled: true },
-  { id: "seed-transferencia-co", name: "Transferencia Bancaria (CO)", currency: "COP", enabled: true },
-  { id: "seed-otro", name: "Otro (a coordinar)", enabled: true },
-];
-
 const STORAGE_KEY = "blox-payment-methods";
 
 const API_ENDPOINTS = [
@@ -71,7 +58,7 @@ export async function fetchPaymentMethods(): Promise<PaymentMethod[] | null> {
 }
 
 export function usePaymentMethods() {
-  const [methods, setMethods] = useState<PaymentMethod[]>(SEED_PAYMENT_METHODS);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

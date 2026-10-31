@@ -605,33 +605,44 @@ export default function CarritoPage() {
                           )}
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {checkoutMethods.map((m) => {
-                            const isSelected = selectedMethod?.id === m.id;
-                            return (
-                              <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => {
-                                  setPaymentMethodId(m.id);
-                                  setPaymentError("");
-                                }}
-                                className={`text-left rounded-xl border px-3 py-2.5 text-xs sm:text-sm transition-all ${
-                                  isSelected
-                                    ? "border-accent bg-accent/10 text-white"
-                                    : "border-white/10 bg-scene-950 text-white/60 hover:border-white/25 hover:text-white"
-                                }`}
-                              >
-                                <span className="flex items-center justify-between gap-2">
-                                  <span className="truncate">{m.name}</span>
-                                  {m.currency && (
-                                    <span className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-full bg-scene-800 text-white/50 border border-white/10 flex-shrink-0">
-                                      {m.currency}
-                                    </span>
-                                  )}
-                                </span>
-                              </button>
-                            );
-                          })}
+                          {checkoutMethods.length === 0 ? (
+                            <div className="col-span-full bg-scene-950 border border-dashed border-white/15 rounded-xl px-4 py-5 text-center">
+                              <p className="text-xs text-white/50">
+                                No hay medios de pago disponibles en este momento.
+                              </p>
+                              <p className="text-[11px] text-white/30 mt-1">
+                                Vuelve a intentarlo en unos minutos.
+                              </p>
+                            </div>
+                          ) : (
+                            checkoutMethods.map((m) => {
+                              const isSelected = selectedMethod?.id === m.id;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setPaymentMethodId(m.id);
+                                    setPaymentError("");
+                                  }}
+                                  className={`text-left rounded-xl border px-3 py-2.5 text-xs sm:text-sm transition-all ${
+                                    isSelected
+                                      ? "border-accent bg-accent/10 text-white"
+                                      : "border-white/10 bg-scene-950 text-white/60 hover:border-white/25 hover:text-white"
+                                  }`}
+                                >
+                                  <span className="flex items-center justify-between gap-2">
+                                    <span className="truncate">{m.name}</span>
+                                    {m.currency && (
+                                      <span className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-full bg-scene-800 text-white/50 border border-white/10 flex-shrink-0">
+                                        {m.currency}
+                                      </span>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
                         </div>
                       </div>
 
@@ -648,7 +659,8 @@ export default function CarritoPage() {
 
                       <button
                         type="submit"
-                        className="w-full bg-accent text-white py-3.5 rounded-full font-semibold text-sm hover:bg-accent-light transition-colors glow-red"
+                        disabled={checkoutMethods.length === 0 || !selectedMethod}
+                        className="w-full bg-accent text-white py-3.5 rounded-full font-semibold text-sm hover:bg-accent-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed glow-red"
                       >
                         Pagar
                       </button>
