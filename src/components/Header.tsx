@@ -65,17 +65,22 @@ export default function Header() {
               scrolled ? "h-10 w-20 sm:h-12 sm:w-24 md:h-14 md:w-28" : "h-14 w-28 sm:h-16 sm:w-32 md:h-20 md:w-40"
             }`}
           >
-            <MetallicPaint
-              imageSrc="/logo.png"
-              speed={0}
-              scale={0.95}
-              density={2}
-              softness={0.12}
-              edgeBend={0.6}
-              mouseTilt={0.45}
-              intro
-              fallback={<img src="/logo.png" alt="" className="h-full w-full object-contain" />}
-            />
+            <div className="relative w-full h-full">
+              <img src="/logo.png" alt="" className="absolute inset-0 w-full h-full object-contain" />
+              <div className="absolute inset-0">
+                <MetallicPaint
+                  imageSrc="/logo-letters.png"
+                  speed={0}
+                  scale={1}
+                  density={2}
+                  softness={0.12}
+                  edgeBend={0.6}
+                  mouseTilt={0.45}
+                  intro
+                  fallback={null}
+                />
+              </div>
+            </div>
           </div>
         </Link>
 
