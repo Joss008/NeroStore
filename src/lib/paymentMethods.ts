@@ -28,9 +28,9 @@ const STORAGE_KEY = "blox-payment-methods";
 
 const API_ENDPOINTS = [
   "/api/payment-methods",
-  "https://nerostorepwa.onrender.com/admin/api/payment-methods",
   "http://localhost:3001/admin/api/payment-methods",
   "http://localhost:3000/api/payment-methods",
+  "https://nerostorepwa.onrender.com/admin/api/payment-methods",
 ];
 
 function readCached(): PaymentMethod[] | null {
