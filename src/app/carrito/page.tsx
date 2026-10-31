@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +13,8 @@ import LoginModal from "@/components/LoginModal";
 
 const MAX_RECEIPT_BYTES = 2 * 1024 * 1024;
 
+const CURRENCY_BY_COUNTRY: Record<string, string> = { PE: "PEN", MX: "MXN", CO: "COP" };
+
 function methodHasDetails(m: PaymentMethod | null): boolean {
   return !!(m && (m.accountNumber || m.imageData || m.imageUrl));
 }
@@ -24,6 +26,7 @@ export default function CarritoPage() {
   const { methods } = usePaymentMethods();
   const [loginOpen, setLoginOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [payStep, setPayStep] = useState<"cart" | "pay">("cart");
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState("");
@@ -31,10 +34,14 @@ export default function CarritoPage() {
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ code: string } | null>(null);
-  const receiptRef = useRef<HTMLInputElement>(null);
 
   const visibleMethods = methods.filter((m) => m.enabled !== false);
-  const selectedMethod = visibleMethods.find((m) => m.id === paymentMethodId) || visibleMethods[0] || null;
+  const userCurrency = user ? CURRENCY_BY_COUNTRY[user.countryCode] : undefined;
+  const countryMethods = userCurrency
+    ? visibleMethods.filter((m) => !m.currency || m.currency === userCurrency)
+    : visibleMethods;
+  const checkoutMethods = countryMethods.length > 0 ? countryMethods : visibleMethods;
+  const selectedMethod = checkoutMethods.find((m) => m.id === paymentMethodId) || checkoutMethods[0] || null;
   const selectedHasDetails = methodHasDetails(selectedMethod);
 
   useEffect(() => {
@@ -45,6 +52,44 @@ export default function CarritoPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [qrLightbox]);
+
+  async function submitOrder(receipt: string | null) {
+    if (items.length === 0 || !user || submitting) return;
+    setPaymentError("");
+    setSubmitting(true);
+    try {
+      const order = await createOrder(
+        {
+          name: user.name,
+          phone: user.phone,
+          countryCode: user.countryCode,
+          countryFlag: user.countryFlag,
+        },
+        items,
+        selectedMethod?.name || "Otro (a coordinar)",
+        notes,
+        {
+          paymentMethodId: selectedMethod?.id,
+          receiptImageData: receipt || undefined,
+        }
+      );
+      setResult({ code: order.code });
+      clearCart();
+      setNotes("");
+      setReceiptData(null);
+    } catch {
+      setPaymentError("No se pudo enviar el pedido. Intenta de nuevo.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handlePagar(e: React.FormEvent) {
+    e.preventDefault();
+    if (items.length === 0 || !user || !selectedMethod) return;
+    setPaymentError("");
+    setPayStep("pay");
+  }
 
   function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,10 +104,11 @@ export default function CarritoPage() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        setReceiptData(result);
+      const data = reader.result;
+      if (typeof data === "string") {
+        setReceiptData(data);
         setPaymentError("");
+        submitOrder(data);
       }
     };
     reader.readAsDataURL(file);
@@ -82,45 +128,6 @@ export default function CarritoPage() {
   const hasItems = items.length > 0;
   const cartCurrency: Currency = hasItems ? items[0].currency : currency;
   const totalForCurrency = totalPriceByCurrency[cartCurrency];
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (items.length === 0 || !user) return;
-    if (selectedHasDetails && !receiptData) {
-      setPaymentError("Sube la imagen del comprobante de pago para continuar.");
-      return;
-    }
-    setPaymentError("");
-    setSubmitting(true);
-
-    setTimeout(async () => {
-      try {
-        const order = await createOrder(
-          {
-            name: user.name,
-            phone: user.phone,
-            countryCode: user.countryCode,
-            countryFlag: user.countryFlag,
-          },
-          items,
-          selectedMethod?.name || "Otro (a coordinar)",
-          notes,
-          {
-            paymentMethodId: selectedMethod?.id,
-            receiptImageData: receiptData || undefined,
-          }
-        );
-        setResult({ code: order.code });
-        clearCart();
-        setNotes("");
-        setReceiptData(null);
-      } catch {
-        // ignore
-      } finally {
-        setSubmitting(false);
-      }
-    }, 800);
-  }
 
   if (result) {
     return (
@@ -167,6 +174,164 @@ export default function CarritoPage() {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (payStep === "pay" && selectedMethod) {
+    return (
+      <div className="min-h-screen bg-scene-950 bg-grid">
+        <section className="relative py-12 sm:py-16 px-4 overflow-hidden border-b border-white/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent" />
+          <div className="max-w-6xl mx-auto relative z-10">
+            <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase block mb-3 sm:mb-4 text-accent">
+              Pago
+            </span>
+            <h1
+              className="text-3xl xs:text-4xl sm:text-5xl font-normal text-white"
+              style={{ fontFamily: "var(--font-cormorant)" }}
+            >
+              Realiza tu pago
+            </h1>
+          </div>
+        </section>
+
+        <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
+          <div className="bg-scene-900 border border-accent/20 rounded-2xl p-5 sm:p-7 glow-red space-y-5">
+            <div className="text-center">
+              <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Pagando con</p>
+              <p
+                className="text-xl font-bold text-white"
+                style={{ fontFamily: "var(--font-cormorant)" }}
+              >
+                {selectedMethod.name}
+              </p>
+              {selectedMethod.currency && (
+                <span className="inline-block text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full bg-scene-800 text-white/60 border border-white/10 mt-1">
+                  {selectedMethod.currency}
+                </span>
+              )}
+            </div>
+
+            {(selectedMethod.imageData || selectedMethod.imageUrl) && (
+              <button
+                type="button"
+                onClick={() => setQrLightbox(selectedMethod.imageData || selectedMethod.imageUrl!)}
+                className="block mx-auto cursor-zoom-in"
+                title="Click para ampliar"
+              >
+                <img
+                  src={selectedMethod.imageData || selectedMethod.imageUrl}
+                  alt={`QR ${selectedMethod.name}`}
+                  className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-2xl bg-white p-3 border border-white/10 hover:scale-105 transition-transform"
+                />
+                <span className="text-[11px] text-white/40 mt-2 block">Click en la imagen para ampliar</span>
+              </button>
+            )}
+
+            {selectedMethod.accountNumber ? (
+              <div className="flex items-center justify-between gap-3 bg-scene-950 border border-white/10 rounded-xl px-4 py-3">
+                <div className="min-w-0">
+                  {selectedMethod.accountHolder && (
+                    <p className="text-[10px] text-white/40 uppercase tracking-wider">
+                      Titular: {selectedMethod.accountHolder}
+                    </p>
+                  )}
+                  <p className="text-white font-mono text-sm break-all">{selectedMethod.accountNumber}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyNumber(selectedMethod.accountNumber!)}
+                  className="text-xs text-accent hover:underline flex-shrink-0"
+                >
+                  {copied ? "✓ Copiado" : "Copiar"}
+                </button>
+              </div>
+            ) : (
+              !selectedMethod.imageData &&
+              !selectedMethod.imageUrl && (
+                <p className="text-xs text-white/50 text-center bg-scene-950 border border-white/10 rounded-xl px-4 py-3">
+                  Coordinaremos el método de pago contigo después de enviar el pedido.
+                </p>
+              )
+            )}
+
+            <div className="border-t border-white/10 pt-4 space-y-3">
+              <div className="text-center">
+                <p className="text-sm text-white font-semibold">Adjuntar comprobante</p>
+                <p className="text-[11px] text-white/40 mt-0.5">
+                  Sube la captura o foto del pago realizado para completar tu pedido
+                </p>
+              </div>
+
+              {receiptData ? (
+                <div className="flex items-center justify-center gap-3">
+                  <img
+                    src={receiptData}
+                    alt="Comprobante"
+                    className="w-16 h-16 rounded-lg object-cover border border-white/10"
+                  />
+                  <p className="text-xs text-white/50">Comprobante adjunto ✓</p>
+                </div>
+              ) : (
+                <label
+                  className={`flex items-center justify-center gap-2 w-full bg-accent text-white py-3.5 rounded-full font-semibold text-sm hover:bg-accent-light transition-colors glow-red cursor-pointer ${
+                    submitting ? "opacity-60 pointer-events-none" : ""
+                  }`}
+                >
+                  <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
+                  📎 {submitting ? "Enviando pedido..." : "Adjuntar comprobante"}
+                </label>
+              )}
+
+              {paymentError && (
+                <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-center">
+                  {paymentError}
+                </p>
+              )}
+
+              {!selectedHasDetails && !submitting && (
+                <button
+                  type="button"
+                  onClick={() => submitOrder(null)}
+                  className="w-full border border-white/20 text-white py-3 rounded-full font-semibold text-sm hover:bg-white/5 transition-colors"
+                >
+                  Confirmar pedido sin comprobante
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setPayStep("cart")}
+                disabled={submitting}
+                className="w-full text-white/40 hover:text-white text-xs py-2 transition-colors"
+              >
+                ← Volver al carrito
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {qrLightbox && (
+          <div
+            className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setQrLightbox(null)}
+          >
+            <img
+              src={qrLightbox}
+              alt="Código QR de pago"
+              className="max-h-[85vh] max-w-full rounded-xl shadow-2xl bg-white p-2"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setQrLightbox(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center transition-colors"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -270,7 +435,7 @@ export default function CarritoPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handlePagar}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
               <div className="lg:col-span-2 space-y-3">
 {items.map((item) => (
@@ -430,9 +595,17 @@ export default function CarritoPage() {
                       </div>
 
                       <div>
-                        <label className="label-base">Método de pago</label>
+                        <label className="label-base">
+                          Método de pago
+                          {user && (
+                            <span className="text-white/30 font-normal normal-case">
+                              {" "}
+                              · opciones de {user.countryFlag} {user.countryCode}
+                            </span>
+                          )}
+                        </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {visibleMethods.map((m) => {
+                          {checkoutMethods.map((m) => {
                             const isSelected = selectedMethod?.id === m.id;
                             return (
                               <button
@@ -462,96 +635,6 @@ export default function CarritoPage() {
                         </div>
                       </div>
 
-                      {selectedMethod && selectedHasDetails && (
-                        <div className="bg-scene-950 border border-white/10 rounded-xl p-4 space-y-3">
-                          <p className="text-xs text-white/50">
-                            Realiza el pago con{" "}
-                            <span className="text-white font-semibold">{selectedMethod.name}</span>
-                          </p>
-
-                          {(selectedMethod.imageData || selectedMethod.imageUrl) && (
-                            <button
-                              type="button"
-                              onClick={() => setQrLightbox(selectedMethod.imageData || selectedMethod.imageUrl!)}
-                              className="block mx-auto cursor-zoom-in"
-                              title="Click para ampliar"
-                            >
-                              <img
-                                src={selectedMethod.imageData || selectedMethod.imageUrl}
-                                alt={`QR ${selectedMethod.name}`}
-                                className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-white/10 hover:scale-105 transition-transform"
-                              />
-                              <span className="text-[10px] text-white/30 mt-1 block">Click para ampliar</span>
-                            </button>
-                          )}
-
-                          {selectedMethod.accountNumber && (
-                            <div className="flex items-center justify-between gap-3 bg-scene-900 rounded-lg px-3 py-2.5">
-                              <div className="min-w-0">
-                                {selectedMethod.accountHolder && (
-                                  <p className="text-[10px] text-white/40 uppercase tracking-wider">
-                                    Titular: {selectedMethod.accountHolder}
-                                  </p>
-                                )}
-                                <p className="text-white font-mono text-sm break-all">
-                                  {selectedMethod.accountNumber}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => copyNumber(selectedMethod.accountNumber!)}
-                                className="text-xs text-accent hover:underline flex-shrink-0"
-                              >
-                                {copied ? "✓ Copiado" : "Copiar"}
-                              </button>
-                            </div>
-                          )}
-
-                          <div>
-                            <label className="label-base">Comprobante de pago</label>
-                            <p className="text-[11px] text-white/40 mb-2">
-                              Sube una imagen del pago realizado para validar tu pedido
-                            </p>
-                            {receiptData ? (
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={receiptData}
-                                  alt="Comprobante"
-                                  className="w-16 h-16 rounded-lg object-cover border border-white/10"
-                                />
-                                <div className="space-y-1">
-                                  <p className="text-xs text-white/50">Comprobante adjunto</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => setReceiptData(null)}
-                                    className="text-xs text-red-400 hover:underline"
-                                  >
-                                    Quitar imagen
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <label className="flex items-center justify-center gap-2 bg-scene-900 border border-dashed border-white/20 hover:border-accent/50 rounded-xl px-4 py-4 text-xs text-white/60 hover:text-white transition-colors cursor-pointer">
-                                <input
-                                  ref={receiptRef}
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleReceiptUpload}
-                                  className="hidden"
-                                />
-                                📷 Subir comprobante
-                              </label>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {paymentError && (
-                        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                          {paymentError}
-                        </p>
-                      )}
-
                       <div>
                         <label className="label-base">Notas del pedido (opcional)</label>
                         <textarea
@@ -565,13 +648,12 @@ export default function CarritoPage() {
 
                       <button
                         type="submit"
-                        disabled={submitting}
-                        className="w-full bg-accent text-white py-3.5 rounded-full font-semibold text-sm hover:bg-accent-light transition-colors disabled:opacity-50 glow-red"
+                        className="w-full bg-accent text-white py-3.5 rounded-full font-semibold text-sm hover:bg-accent-light transition-colors glow-red"
                       >
-                        {submitting ? "Enviando..." : "Enviar Pedido"}
+                        Pagar
                       </button>
                       <p className="text-white/30 text-xs text-center">
-                        Al enviar aceptas nuestros términos y condiciones
+                        Al pagar aceptas nuestros términos y condiciones
                       </p>
                     </div>
                   )}
@@ -581,27 +663,6 @@ export default function CarritoPage() {
           </form>
         </div>
       </section>
-
-      {qrLightbox && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 cursor-zoom-out"
-          onClick={() => setQrLightbox(null)}
-        >
-          <img
-            src={qrLightbox}
-            alt="Código QR de pago"
-            className="max-h-[85vh] max-w-full rounded-xl shadow-2xl bg-white p-2"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            onClick={() => setQrLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center transition-colors"
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
