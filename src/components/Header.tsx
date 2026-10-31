@@ -70,9 +70,9 @@ export default function Header() {
               <div className="absolute inset-0">
                 <MetallicPaint
                   imageSrc="/logo-letters.png"
-                  speed={0}
+                  speed={0.8}
                   scale={1}
-                  density={2}
+                  density={3.5}
                   softness={0.12}
                   edgeBend={0.6}
                   mouseTilt={0.45}
