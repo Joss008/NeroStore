@@ -1,37 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { createOrder, formatOrderDate } from "@/lib/orders";
 import { formatCurrency, CURRENCY_CODES } from "@/lib/format";
+import { usePaymentMethods, type PaymentMethod } from "@/lib/paymentMethods";
 import type { Currency } from "@/lib/products";
 import LoginModal from "@/components/LoginModal";
 
-const paymentMethods = [
-  { value: "yape", label: "Yape (Perú)" },
-  { value: "plin", label: "Plin (Perú)" },
-  { value: "transferencia-pe", label: "Transferencia Bancaria (PE)" },
-  { value: "oxxo", label: "OXXO (México)" },
-  { value: "spei", label: "SPEI (México)" },
-  { value: "transferencia-mx", label: "Transferencia Bancaria (MX)" },
-  { value: "nequi", label: "Nequi (Colombia)" },
-  { value: "daviplata", label: "Daviplata (Colombia)" },
-  { value: "transferencia-co", label: "Transferencia Bancaria (CO)" },
-  { value: "otro", label: "Otro (a coordinar)" },
-];
+const MAX_RECEIPT_BYTES = 2 * 1024 * 1024;
+
+function methodHasDetails(m: PaymentMethod | null): boolean {
+  return !!(m && (m.accountNumber || m.imageData || m.imageUrl));
+}
 
 export default function CarritoPage() {
   const { items, removeItem, updateQuantity, updateNotes, clearCart, totalItems, totalPriceByCurrency } = useCart();
   const { isAuthenticated, user } = useAuth();
   const currency = useCurrency();
+  const { methods } = usePaymentMethods();
   const [loginOpen, setLoginOpen] = useState(false);
   const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("yape");
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState("");
+  const [qrLightbox, setQrLightbox] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ code: string } | null>(null);
+  const receiptRef = useRef<HTMLInputElement>(null);
+
+  const visibleMethods = methods.filter((m) => m.enabled !== false);
+  const selectedMethod = visibleMethods.find((m) => m.id === paymentMethodId) || visibleMethods[0] || null;
+  const selectedHasDetails = methodHasDetails(selectedMethod);
+
+  useEffect(() => {
+    if (!qrLightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setQrLightbox(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [qrLightbox]);
+
+  function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setPaymentError("El comprobante debe ser una imagen (PNG, JPG, etc).");
+      return;
+    }
+    if (file.size > MAX_RECEIPT_BYTES) {
+      setPaymentError("La imagen es muy grande (máx. 2 MB). Comprime la imagen e inténtalo de nuevo.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setReceiptData(result);
+        setPaymentError("");
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  async function copyNumber(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }
 
   const hasItems = items.length > 0;
   const cartCurrency: Currency = hasItems ? items[0].currency : currency;
@@ -40,6 +86,11 @@ export default function CarritoPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0 || !user) return;
+    if (selectedHasDetails && !receiptData) {
+      setPaymentError("Sube la imagen del comprobante de pago para continuar.");
+      return;
+    }
+    setPaymentError("");
     setSubmitting(true);
 
     setTimeout(async () => {
@@ -52,12 +103,17 @@ export default function CarritoPage() {
             countryFlag: user.countryFlag,
           },
           items,
-          paymentMethod,
-          notes
+          selectedMethod?.name || "Otro (a coordinar)",
+          notes,
+          {
+            paymentMethodId: selectedMethod?.id,
+            receiptImageData: receiptData || undefined,
+          }
         );
         setResult({ code: order.code });
         clearCart();
         setNotes("");
+        setReceiptData(null);
       } catch {
         // ignore
       } finally {
@@ -375,18 +431,126 @@ export default function CarritoPage() {
 
                       <div>
                         <label className="label-base">Método de pago</label>
-                        <select
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="w-full bg-scene-950 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent transition-colors"
-                        >
-                          {paymentMethods.map((m) => (
-                            <option key={m.value} value={m.value}>
-                              {m.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {visibleMethods.map((m) => {
+                            const isSelected = selectedMethod?.id === m.id;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  setPaymentMethodId(m.id);
+                                  setPaymentError("");
+                                }}
+                                className={`text-left rounded-xl border px-3 py-2.5 text-xs sm:text-sm transition-all ${
+                                  isSelected
+                                    ? "border-accent bg-accent/10 text-white"
+                                    : "border-white/10 bg-scene-950 text-white/60 hover:border-white/25 hover:text-white"
+                                }`}
+                              >
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="truncate">{m.name}</span>
+                                  {m.currency && (
+                                    <span className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-full bg-scene-800 text-white/50 border border-white/10 flex-shrink-0">
+                                      {m.currency}
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
+
+                      {selectedMethod && selectedHasDetails && (
+                        <div className="bg-scene-950 border border-white/10 rounded-xl p-4 space-y-3">
+                          <p className="text-xs text-white/50">
+                            Realiza el pago con{" "}
+                            <span className="text-white font-semibold">{selectedMethod.name}</span>
+                          </p>
+
+                          {(selectedMethod.imageData || selectedMethod.imageUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => setQrLightbox(selectedMethod.imageData || selectedMethod.imageUrl!)}
+                              className="block mx-auto cursor-zoom-in"
+                              title="Click para ampliar"
+                            >
+                              <img
+                                src={selectedMethod.imageData || selectedMethod.imageUrl}
+                                alt={`QR ${selectedMethod.name}`}
+                                className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-white/10 hover:scale-105 transition-transform"
+                              />
+                              <span className="text-[10px] text-white/30 mt-1 block">Click para ampliar</span>
+                            </button>
+                          )}
+
+                          {selectedMethod.accountNumber && (
+                            <div className="flex items-center justify-between gap-3 bg-scene-900 rounded-lg px-3 py-2.5">
+                              <div className="min-w-0">
+                                {selectedMethod.accountHolder && (
+                                  <p className="text-[10px] text-white/40 uppercase tracking-wider">
+                                    Titular: {selectedMethod.accountHolder}
+                                  </p>
+                                )}
+                                <p className="text-white font-mono text-sm break-all">
+                                  {selectedMethod.accountNumber}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => copyNumber(selectedMethod.accountNumber!)}
+                                className="text-xs text-accent hover:underline flex-shrink-0"
+                              >
+                                {copied ? "✓ Copiado" : "Copiar"}
+                              </button>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="label-base">Comprobante de pago</label>
+                            <p className="text-[11px] text-white/40 mb-2">
+                              Sube una imagen del pago realizado para validar tu pedido
+                            </p>
+                            {receiptData ? (
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={receiptData}
+                                  alt="Comprobante"
+                                  className="w-16 h-16 rounded-lg object-cover border border-white/10"
+                                />
+                                <div className="space-y-1">
+                                  <p className="text-xs text-white/50">Comprobante adjunto</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReceiptData(null)}
+                                    className="text-xs text-red-400 hover:underline"
+                                  >
+                                    Quitar imagen
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <label className="flex items-center justify-center gap-2 bg-scene-900 border border-dashed border-white/20 hover:border-accent/50 rounded-xl px-4 py-4 text-xs text-white/60 hover:text-white transition-colors cursor-pointer">
+                                <input
+                                  ref={receiptRef}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleReceiptUpload}
+                                  className="hidden"
+                                />
+                                📷 Subir comprobante
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {paymentError && (
+                        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                          {paymentError}
+                        </p>
+                      )}
 
                       <div>
                         <label className="label-base">Notas del pedido (opcional)</label>
@@ -417,6 +581,27 @@ export default function CarritoPage() {
           </form>
         </div>
       </section>
+
+      {qrLightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setQrLightbox(null)}
+        >
+          <img
+            src={qrLightbox}
+            alt="Código QR de pago"
+            className="max-h-[85vh] max-w-full rounded-xl shadow-2xl bg-white p-2"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setQrLightbox(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center transition-colors"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>

@@ -10,6 +10,8 @@ export interface Order {
   currency: string;
   status: "pending" | "confirmed" | "delivered" | "cancelled";
   paymentMethod: string;
+  paymentMethodId?: string;
+  receiptImageData?: string;
   notes: string;
   createdAt: string;
 }
@@ -81,7 +83,8 @@ export async function createOrder(
   user: { name: string; phone: string; countryCode: string; countryFlag: string },
   items: CartItem[],
   paymentMethod: string,
-  notes: string
+  notes: string,
+  extras?: { paymentMethodId?: string; receiptImageData?: string }
 ): Promise<Order> {
   const code = generateOrderCode();
 
@@ -99,6 +102,8 @@ export async function createOrder(
     currency: items[0]?.currency || "PEN",
     status: "pending",
     paymentMethod,
+    paymentMethodId: extras?.paymentMethodId,
+    receiptImageData: extras?.receiptImageData,
     notes,
     createdAt: new Date().toISOString(),
   };
